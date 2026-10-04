@@ -12,7 +12,7 @@ LON = "-74.0869"
 
 HEADERS = {
     # NOAA requires a unique User-Agent header (include an email or app name)
-    "User-Agent": "NewPaltzTrmnlDisplay/1.0 (contact@example.com)"
+    "User-Agent": "NewPaltzTrmnlDisplay/1.0 (alexmotz-trmnl-display)"
 }
 
 
