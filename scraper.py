@@ -124,12 +124,15 @@ if __name__ == "__main__":
     weather_data = get_noaa_weather()
     school_data = scrape_high_school_site()
 
-    # Combine into a single dictionary
+    # Combine into a single dictionary matching the new weather keys
     combined_payload = {
         "school_title": "New Paltz High School",
-        "weather_temp": weather_data["temp"],
-        "weather_condition": weather_data["condition"],
-        "weather_wind": weather_data["wind"],
+        "today_temp": weather_data["today_temp"],
+        "today_icon": weather_data["today_icon"],
+        "today_cond": weather_data["today_cond"],
+        "tomorrow_temp": weather_data["tomorrow_temp"],
+        "tomorrow_icon": weather_data["tomorrow_icon"],
+        "tomorrow_cond": weather_data["tomorrow_cond"],
         "announcement_1": school_data["announcement_1"],
         "announcement_2": school_data["announcement_2"]
     }
