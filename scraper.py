@@ -5,32 +5,21 @@ from bs4 import BeautifulSoup
 
 TRMNL_WEBHOOK_URL = os.environ.get("TRMNL_WEBHOOK_URL")
 SCHOOL_URL = "https://hs.newpaltz.k12.ny.us/"
-
-# New Paltz, NY Coordinates
-LAT = "41.7449"
-LON = "-74.0869"
+FORECAST_URL = "https://api.weather.gov/gridpoints/ALY/67,20/forecast"
 
 HEADERS = {
     # NOAA requires a unique User-Agent header (include an email or app name)
-    "User-Agent": "NewPaltzTrmnlDisplay/1.0 (alexmotz-trmnl-display)"
+    "User-Agent": "NewPaltzTrmnlDisplay/1.0 (amotz-trmnl-display)"
 }
 
 
 def get_noaa_weather():
-    """Fetches current forecast from the NOAA API for New Paltz, NY."""
+    """Fetches forecast directly using the hard-coded gridpoint URL."""
     try:
-        # Step 1: Get grid forecast URL from NOAA for these coordinates
-        point_url = f"https://api.weather.gov/points/{LAT},{LON}"
-        point_res = requests.get(point_url, headers=HEADERS, timeout=10)
-        point_res.raise_for_status()
+        response = requests.get(FORECAST_URL, headers=HEADERS, timeout=10)
+        response.raise_for_status()
         
-        forecast_url = point_res.json()["properties"]["forecast"]
-
-        # Step 2: Get actual forecast data
-        forecast_res = requests.get(forecast_url, headers=HEADERS, timeout=10)
-        forecast_res.raise_for_status()
-        
-        periods = forecast_res.json()["properties"]["periods"]
+        periods = response.json()["properties"]["periods"]
         current = periods[0]  # Today/Tonight's forecast
 
         return {
@@ -45,7 +34,6 @@ def get_noaa_weather():
             "condition": "Weather Unavailable",
             "wind": "--"
         }
-
 
 def scrape_high_school_site():
     """Scrapes the New Paltz High School homepage for announcements."""
