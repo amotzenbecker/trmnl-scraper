@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import requests
 from bs4 import BeautifulSoup
@@ -12,29 +13,75 @@ HEADERS = {
     "User-Agent": "NewPaltzTrmnlDisplay/1.0 (amotz-trmnl-display)"
 }
 
+def get_weather_icon(condition_text):
+    """Maps NOAA forecast condition text to TRMNL hosted SVG icons."""
+    text = condition_text.lower()
+    if "sun" in text or "clear" in text:
+        icon = "wi-day-sunny"
+    elif "rain" in text or "shower" in text:
+        icon = "wi-day-rain"
+    elif "snow" in text or "flurr" in text:
+        icon = "wi-day-snow"
+    elif "thunder" in text or "storm" in text:
+        icon = "wi-day-thunderstorm"
+    elif "cloud" in text or "overcast" in text:
+        icon = "wi-day-cloudy"
+    elif "fog" in text or "haze" in text:
+        icon = "wi-day-fog"
+    else:
+        icon = "wi-day-sunny"
+    return f"https://trmnl.com/images/plugins/weather/{icon}.svg"
 
 def get_noaa_weather():
-    """Fetches forecast directly using the hard-coded gridpoint URL."""
+    url = "https://api.weather.gov/gridpoints/ALY/67,20/forecast"
+    headers = {"User-Agent": "NewPaltzTrmnlDisplay/1.0 (contact@example.com)"}
     try:
-        response = requests.get(FORECAST_URL, headers=HEADERS, timeout=10)
+        response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
-        
         periods = response.json()["properties"]["periods"]
-        current = periods[0]  # Today/Tonight's forecast
+        
+        # Helper to extract numeric temperature integer
+        def get_temp(p):
+            return p["temperature"]
+
+        # Today vs Tomorrow grouping
+        # If running early in the day: period[0] is Today (Hi), period[1] is Tonight (Lo)
+        # If running late at night: period[0] is Tonight (Lo)
+        if periods[0]["isDaytime"]:
+            today_hi = f"{get_temp(periods[0])}°"
+            today_lo = f"{get_temp(periods[1])}°"
+            today_cond = periods[0]["shortForecast"]
+            today_icon = get_weather_icon(today_cond)
+            
+            tomorrow_hi = f"{get_temp(periods[2])}°"
+            tomorrow_lo = f"{get_temp(periods[3])}°"
+            tomorrow_cond = periods[2]["shortForecast"]
+            tomorrow_icon = get_weather_icon(tomorrow_cond)
+        else:
+            today_hi = "--°"
+            today_lo = f"{get_temp(periods[0])}°"
+            today_cond = periods[0]["shortForecast"]
+            today_icon = get_weather_icon(today_cond)
+            
+            tomorrow_hi = f"{get_temp(periods[1])}°"
+            tomorrow_lo = f"{get_temp(periods[2])}°"
+            tomorrow_cond = periods[1]["shortForecast"]
+            tomorrow_icon = get_weather_icon(tomorrow_cond)
 
         return {
-            "temp": f"{current['temperature']}°{current['temperatureUnit']}",
-            "condition": current["shortForecast"],
-            "wind": f"{current['windSpeed']} {current['windDirection']}"
+            "today_temp": f"{today_hi} / {today_lo}",
+            "today_icon": today_icon,
+            "today_cond": today_cond,
+            "tomorrow_temp": f"{tomorrow_hi} / {tomorrow_lo}",
+            "tomorrow_icon": tomorrow_icon,
+            "tomorrow_cond": tomorrow_cond
         }
     except Exception as e:
-        print(f"Weather fetch failed: {e}")
+        print(f"Weather error: {e}")
         return {
-            "temp": "--°F",
-            "condition": "Weather Unavailable",
-            "wind": "--"
+            "today_temp": "--° / --°", "today_icon": "", "today_cond": "N/A",
+            "tomorrow_temp": "--° / --°", "tomorrow_icon": "", "tomorrow_cond": "N/A"
         }
-
 def scrape_high_school_site():
     """Scrapes the New Paltz High School homepage for announcements."""
     response = requests.get(SCHOOL_URL, headers=HEADERS, timeout=15)
