@@ -20,7 +20,7 @@ def get_weather_icon(condition_text):
         icon = "wi-day-sunny"
     elif "rain" in text or "shower" in text:
         icon = "wi-day-rain"
-    elif "snow" in text or "flurr" in text:
+    elif "snow" in text or "flurries" in text:
         icon = "wi-day-snow"
     elif "thunder" in text or "storm" in text:
         icon = "wi-day-thunderstorm"
@@ -83,24 +83,42 @@ def get_noaa_weather():
             "tomorrow_temp": "--° / --°", "tomorrow_icon": "", "tomorrow_cond": "N/A"
         }
 def scrape_high_school_site():
-    """Scrapes the New Paltz High School homepage for announcements."""
-    response = requests.get(SCHOOL_URL, headers=HEADERS, timeout=15)
-    if response.status_code != 200:
-        raise Exception(f"Failed to fetch site. HTTP Status: {response.status_code}")
-
-    soup = BeautifulSoup(response.text, "html.parser")
+    url = "https://hs.newpaltz.k12.ny.us/"
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
     
-    headlines = []
-    for heading in soup.find_all(['h2', 'h3', 'a'], limit=10):
-        text = heading.get_text(strip=True)
-        if text and len(text) > 15 and text not in headlines:
-            headlines.append(text)
-
-    return {
-        "announcement_1": headlines[0] if len(headlines) > 0 else "No recent announcements.",
-        "announcement_2": headlines[1] if len(headlines) > 1 else ""
-    }
-
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        
+        # Get all text content from the homepage
+        page_text = soup.get_text(separator=" ")
+        
+        # Search for patterns like "Today is a B Day", "Today is an A Day", or "Day B"
+        match = re.search(r"Today\s+is\s+an?\s+([A-D])\s+Day", page_text, re.IGNORECASE)
+        
+        if not match:
+            # Secondary check for short patterns like "Cycle Day: B" or "Day B"
+            match = re.search(r"(?:Cycle\s+)?Day\s+([A-D])\b", page_text, re.IGNORECASE)
+            
+        if match:
+            cycle_letter = match.group(1).upper()
+            cycle_day_text = f"Today is a {cycle_letter} Day"
+        else:
+            cycle_letter = "--"
+            cycle_day_text = "No School! 😁"
+            
+        return {
+            "cycle_letter": cycle_letter,
+            "cycle_day_text": cycle_day_text
+        }
+        
+    except Exception as e:
+        print(f"School scraping error: {e}")
+        return {
+            "cycle_letter": "--",
+            "cycle_day_text": "Schedule Unavailable"
+        }
 
 def send_to_trmnl(data):
     """Posts combined payload to the TRMNL webhook."""
@@ -124,7 +142,7 @@ if __name__ == "__main__":
     weather_data = get_noaa_weather()
     school_data = scrape_high_school_site()
 
-    # Combine into a single dictionary matching the new weather keys
+   # Combine into a single dictionary
     combined_payload = {
         "school_title": "New Paltz High School",
         "today_temp": weather_data["today_temp"],
@@ -133,8 +151,8 @@ if __name__ == "__main__":
         "tomorrow_temp": weather_data["tomorrow_temp"],
         "tomorrow_icon": weather_data["tomorrow_icon"],
         "tomorrow_cond": weather_data["tomorrow_cond"],
-        "announcement_1": school_data["announcement_1"],
-        "announcement_2": school_data["announcement_2"]
+        "cycle_letter": school_data["cycle_letter"],
+        "cycle_day_text": school_data["cycle_day_text"]
     }
 
     send_to_trmnl(combined_payload)
